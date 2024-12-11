@@ -3,7 +3,8 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{vue,js,ts,jsx,tsx}",],
+    "./src/**/*.{vue,js,ts,jsx,tsx}",
+    "node_modules/flowbite/**/*.js"],
   darkMode: 'class',
   theme: {
     extend: {
@@ -47,7 +48,10 @@ export default {
     'Noto Color Emoji'
   ]
     }
-  }
+  },
+  plugins: [
+    require('flowbite/plugin')
+  ],
 }
 
 

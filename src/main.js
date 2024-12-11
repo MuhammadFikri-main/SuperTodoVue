@@ -1,14 +1,13 @@
-import './assets/main.css'
+import './assets/main.css'  // Tailwind CSS import
 
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+import { createApp } from "vue";  // Import Vue 3
+import { createPinia } from "pinia";  // Import Pinia for state management
+import router from "./router";  // Import Vue Router
+import App from "./App.vue";  // Import root component (App.vue)
 
-import App from './App.vue'
-import router from './router'
+const app = createApp(App);  // Create Vue app instance
 
-const app = createApp(App)
+app.use(createPinia());  // Set up Pinia store
+app.use(router);  // Set up router
 
-app.use(createPinia())
-app.use(router)
-
-app.mount('#app')
+app.mount("#app");  // Mount app to DOM
