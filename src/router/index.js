@@ -4,21 +4,31 @@ import Backend from "@/layouts/variations/Backend.vue";
 const routes = [
   {
     path: "/",
-    redirect: "/page-one",
+    redirect: "/dashboard",
+  },
+  {
+    path: "/login",
+    name: "Login",
+    component: () => import("@/views/LoginView.vue"),
+  },
+  {
+    path: "/register",
+    name: "Register",
+    component: () => import("@/views/RegisterView.vue"),
   },
   {
     path: "/",
     component: Backend,
     children: [
       {
-        path: "page-one",
-        name: "PageOne",
-        component: () => import("@/views/PageOne.vue"),
+        path: "dashboard",
+        name: "Dashboard",
+        component: () => import("@/views/Dashboard.vue"),
       },
       {
-        path: "page-two",
-        name: "PageTwo",
-        component: () => import("@/views/PageTwo.vue"),
+        path: "task",
+        name: "Task",
+        component: () => import("@/views/TaskView.vue"),
       },
       {
         path: "page-three",
