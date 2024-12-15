@@ -4,7 +4,7 @@ import Backend from "@/layouts/variations/Backend.vue";
 const routes = [
   {
     path: "/",
-    redirect: "/dashboard",
+    redirect: "/login",
   },
   {
     path: "/login",
