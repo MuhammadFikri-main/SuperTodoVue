@@ -43,10 +43,10 @@
   
     components: {
       Header,
-      Sidebar,
-      Footer,
-      Customizer,
-      TapTop
+    //   Sidebar,
+    //   Footer,
+    //   Customizer,
+    //   TapTop
     },
     data() {
       return {
@@ -58,15 +58,15 @@
       };
     },
     computed: {
-      ...mapState({
-        menuItems: state => state.menu.data,
-        layout: state => state.layout.layout,
-        togglesidebar: (state) => state.menu.togglesidebar,
-        activeoverlay: (state) => state.menu.activeoverlay
-      }),
-      ...mapGetters({
-        sidebar: 'layout/sidebar'
-      }),
+    //   ...mapState({
+    //     menuItems: state => state.menu.data,
+    //     layout: state => state.layout.layout,
+    //     togglesidebar: (state) => state.menu.togglesidebar,
+    //     activeoverlay: (state) => state.menu.activeoverlay
+    //   }),
+    //   ...mapGetters({
+    //     sidebar: 'layout/sidebar'
+    //   }),
       layoutobject: {
         get: function () {
           return JSON.parse(JSON.stringify(layoutClasses.find((item) => Object.keys(item).pop() === this.layout.settings.layout)))[this.layout.settings.layout];

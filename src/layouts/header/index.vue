@@ -51,9 +51,9 @@
 <script>
   
   import logoPage from '../header/logoPage.vue'
-//   import searchPage from '../header/searchPage.vue'
-//   import languagePage from '../header/languagePage.vue'
-//   import iconPage from '../header/iconPage.vue'
+  import searchPage from '../header/searchPage.vue'
+  import languagePage from '../header/languagePage.vue'
+  import iconPage from '../header/iconPage.vue'
   
   export default {
     name: 'headerView',
