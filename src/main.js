@@ -2,12 +2,11 @@ import './assets/main.css'  // Tailwind CSS import
 
 import { createApp } from "vue";  // Import Vue 3
 import { createPinia } from "pinia";  // Import Pinia for state management
-import router from "./router";  // Import Vue Router
-import axios from 'axios';
-import App from "./App.vue";  // Import root component (App.vue)
-import { useAuthStore } from "./stores/authStore";
+import { useAuthStore } from "./stores/authStore"; // Import authStore from store
 
-const app = createApp(App);  // Create Vue app instance
+import router from "./router";  // Import Vue Router
+import axios from 'axios'; // Import axios
+import App from "./App.vue";  // Import root component (App.vue)
 
 // Set up Axios instance
 const instance = axios.create({
@@ -39,12 +38,14 @@ instance.interceptors.response.use(
         if (error.response.status === 401 || error.response.status === 498) {
             const userStore = useAuthStore();
             userStore.logout();
-            router.push({ name: 'login' }); // Redirect to login page
+            router.push({ name: 'Login' }); // Redirect to login page
         }
         }
         return Promise.reject(error);
     }
 );
+
+const app = createApp(App);  // Create Vue app instance
 
 // Provide Axios instance globally
 app.provide('$axios', instance);

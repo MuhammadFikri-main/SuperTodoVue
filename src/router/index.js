@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Backend from "@/layouts/variations/Backend.vue";
+import BodyView from '@/layouts/bodyPage.vue'
 
 const routes = [
   {
@@ -30,6 +31,17 @@ const routes = [
         name: "Task",
         component: () => import("@/views/TaskView.vue"),
       },
+      {
+        path: "page-three",
+        name: "PageThree",
+        component: () => import("@/views/PageThree.vue"),
+      },
+    ],
+  },
+  {
+    path: "/",
+    component: BodyView,
+    children: [
       {
         path: "page-three",
         name: "PageThree",
