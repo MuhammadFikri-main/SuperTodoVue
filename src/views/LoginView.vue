@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 // Reactive state
 const email = ref('')
@@ -12,6 +13,7 @@ const isLoading = ref(false) // Loading state
 
 // Router instance
 const router = useRouter()
+const authStore = useAuthStore()
 
 // Login method
 const login = async () => {
@@ -37,11 +39,15 @@ const login = async () => {
 
     // Handle successful login
     if (response.data.success) {
-      // Store the token in local storage
-      localStorage.setItem('auth_token', response.data.token)
+      // set token and user data in auth store
+      authStore.setToken(response.data.token)
+      authStore.setUser(response.data.user)
 
       // Redirect to a protected route or dashboard
       router.push('/dashboard')
+    } else {
+      // Handle login errors
+      errorMessage.value = response.data.message || 'Login failed. Please try again.'
     }
   } catch (error) {
     // Handle API errors
