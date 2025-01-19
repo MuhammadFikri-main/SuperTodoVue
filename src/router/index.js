@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import { useAuthStore } from '@/stores/auth' // Import the auth store
+import BaseLayout from '@/layouts/BaseLayout.vue' // Import the base layout
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,25 +8,38 @@ const router = createRouter({
     {
       path: '/',
       name: 'login',
-      component: () => import('../views/LoginView.vue'),
+      component: () => import('@/views/LoginView.vue'), // Login page (no layout)
     },
     {
-      path: '/home',
-      name: 'home',
-      component: HomeView,
+      path: '/logout',
+      name: 'logout',
+      redirect: '/', // Redirect to the login page
+      beforeEnter: (to, from, next) => {
+        const authStore = useAuthStore() // Import and use the Pinia store
+        authStore.logout() // Clear the token
+        next('/') // Redirect to the login page
+      },
     },
     {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
-    },
-    {
-      path: '/task',
-      name: 'task',
-      component: () => import('../views/TaskView.vue'),
+      path: '/',
+      component: BaseLayout, // Base layout for main pages
+      children: [
+        {
+          path: 'home',
+          name: 'home',
+          component: () => import('@/views/HomeView.vue'), // Home page
+        },
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: () => import('@/views/AboutView.vue'), // About page
+        },
+        {
+          path: 'task',
+          name: 'task',
+          component: () => import('@/views/TaskView.vue'), // Task page
+        },
+      ],
     },
   ],
 })
