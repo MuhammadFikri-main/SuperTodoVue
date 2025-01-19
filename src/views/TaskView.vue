@@ -30,7 +30,7 @@ const displayToast = (message, type = 'success', duration = 3000) => {
     showToast.value = false
   }, duration)
 }
-
+//add task function
 // Fetch tasks when the component is mounted
 onMounted(async () => {
   await fetchTasks()
