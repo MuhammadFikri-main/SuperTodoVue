@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { reactive, onMounted } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -9,64 +9,77 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 // Reactive state
-const tasks = ref([])
-const newTask = ref({
-  title: '',
-  description: 'description',
+const state = reactive({
+  tasks: [],
+  newTask: {
+    title: '',
+    description: 'description',
+  },
+  isLoading: false,
+  toast: {
+    message: '',
+    type: '', // 'success', 'error', etc.
+    visible: false,
+  },
 })
-const isLoading = ref(false) // Loading state
-const toastMessage = ref('') // Toast message
-const toastType = ref('') // Toast type: 'success', 'error', etc.
-const showToast = ref(false) // Control toast visibility
 
 // Show toast function
 const displayToast = (message, type = 'success', duration = 3000) => {
-  toastMessage.value = message
-  toastType.value = type
-  showToast.value = true
+  state.toast.message = message
+  state.toast.type = type
+  state.toast.visible = true
 
   // Hide toast after duration
   setTimeout(() => {
-    showToast.value = false
+    state.toast.visible = false
   }, duration)
 }
-//add task function
-// Fetch tasks when the component is mounted
-onMounted(async () => {
-  await fetchTasks()
-})
 
 // Fetch tasks from the backend
 const fetchTasks = async () => {
-  isLoading.value = true
+  state.isLoading = true
   try {
-    const response = await axios.get(import.meta.env.VITE_API_URL + '/task', {
+    const response = await axios.get(import.meta.env.VITE_API_URL + '/getListOfTasks', {
       headers: {
         Authorization: `Bearer ${authStore.token}`, // Include the token
       },
     })
-    tasks.value = response.data.task // Update tasks with the fetched data
+    state.tasks = response.data.task // Update tasks with the fetched data
   } catch (error) {
     handleApiError(error, 'Failed to fetch tasks.')
   } finally {
-    isLoading.value = false
+    state.isLoading = false
   }
 }
 
-// Add a new task
+// Fetch tasks when the component is mounted
+onMounted(fetchTasks)
+
+// Add a new task (Optimistic UI)
 const addTask = async () => {
-  if (!newTask.value.title.trim()) {
+  if (!state.newTask.title.trim()) {
     displayToast('Task title cannot be empty.', 'error') // Show error toast
     return
   }
 
-  isLoading.value = true
+  const tempId = Date.now() // Temporary ID for optimistic update
+  const optimisticTask = {
+    id: tempId,
+    title: state.newTask.title,
+    description: state.newTask.description,
+    isTemporary: true, // Flag to identify temporary tasks
+  }
+
+  // Optimistically add task to UI
+  state.tasks.push(optimisticTask)
+
+  state.isLoading = true
   try {
     const response = await axios.post(
       import.meta.env.VITE_API_URL + '/task',
       {
-        title: newTask.value.title,
-        description: newTask.value.description,
+        title: state.newTask.title,
+        description: state.newTask.description,
       },
       {
         headers: {
@@ -74,25 +87,34 @@ const addTask = async () => {
         },
       },
     )
-    tasks.value.push(response.data.task) // Add the new task to the list
-    newTask.value.title = ''
-    newTask.value.description = ''
-    fetchTasks() // Fetch tasks again to update the list
+
+    // Replace the temporary task with the real one from API
+    state.tasks = state.tasks.map((task) => (task.id === tempId ? response.data.task : task))
+
+    state.newTask.title = ''
+    state.newTask.description = ''
     displayToast('Task added successfully!', 'success') // Show success toast
+    fetchTasks() // Fetch tasks again to get the updated list
   } catch (error) {
-    handleApiError(error, 'Failed to add task.') // Handle API error
+    // Rollback UI changes if API request fails
+    state.tasks = state.tasks.filter((task) => task.id !== tempId)
+    handleApiError(error, 'Failed to add task.')
   } finally {
-    isLoading.value = false
+    state.isLoading = false
   }
 }
 
 // Toggle task completion status
 const toggleTaskCompletion = async (task) => {
+  const updatedStatus = task.status === 'completed' ? 'On-Going' : 'completed' // Toggle status
+
   try {
     const response = await axios.put(
       import.meta.env.VITE_API_URL + `/task/${task.id}`,
       {
-        completed: !task.completed,
+        title: task.title, // Keep existing title
+        description: task.description, // Keep existing description
+        status: updatedStatus, // Toggle status
       },
       {
         headers: {
@@ -100,10 +122,13 @@ const toggleTaskCompletion = async (task) => {
         },
       },
     )
-    task.completed = response.data.task.completed // Update task completion status
-    displayToast('Task status updated!', 'success') // Show success toast
+
+    // Update UI optimistically
+    task.status = response.data.task.status
+    fetchTasks() // Fetch tasks again to get the updated list
+    displayToast('Task status updated!', 'success')
   } catch (error) {
-    handleApiError(error, 'Failed to update task.') // Handle API error
+    handleApiError(error, 'Failed to update task.')
   }
 }
 
@@ -115,10 +140,10 @@ const deleteTask = async (task) => {
         Authorization: `Bearer ${authStore.token}`, // Include the token
       },
     })
-    tasks.value = tasks.value.filter((t) => t.id !== task.id) // Remove the deleted task
-    displayToast('Task deleted successfully!', 'success') // Show success toast
+    state.tasks = state.tasks.filter((t) => t.id !== task.id) // Remove the deleted task
+    displayToast('Task deleted successfully!', 'success')
   } catch (error) {
-    handleApiError(error, 'Failed to delete task.') // Handle API error
+    handleApiError(error, 'Failed to delete task.')
   }
 }
 
@@ -127,28 +152,27 @@ const handleApiError = (error, defaultMessage) => {
   if (error.response?.status === 401) {
     // Unauthorized: Redirect to login page
     authStore.clearToken() // Clear auth state in Pinia store
-    displayToast('You are not authorized. Please log in.', 'error') // Show unauthorized toast
+    displayToast('You are not authorized. Please log in.', 'error')
     router.push('/') // Redirect to login page
   } else {
     // Display error message
     const errorMessage = error.response?.data?.message || defaultMessage
-    displayToast(errorMessage, 'error') // Show error toast
+    displayToast(errorMessage, 'error')
   }
 }
 </script>
 
 <template>
   <div class="container mx-auto flex justify-center items-center h-screen">
-    <!-- DaisyUI Toast -->
-    <div v-if="showToast" class="toast toast-top toast-end">
-      <div :class="['alert', `alert-${toastType}`]">
-        <span>{{ toastMessage }}</span>
+    <!-- Toast Notification -->
+    <div v-if="state.toast.visible" class="toast toast-top toast-end">
+      <div :class="['alert', `alert-${state.toast.type}`]">
+        <span>{{ state.toast.message }}</span>
       </div>
     </div>
 
     <!-- Task Management Card -->
     <div class="card bg-base-100 w-96 shadow-xl">
-      <!-- Card Body -->
       <div class="card-body">
         <!-- Task and Add Button -->
         <div class="flex flex-row items-center gap-2">
@@ -157,31 +181,56 @@ const handleApiError = (error, defaultMessage) => {
               type="text"
               class="grow"
               placeholder="Add Task"
-              v-model="newTask.title"
+              v-model="state.newTask.title"
               @keyup.enter="addTask"
             />
           </label>
-          <button class="btn btn-primary" :disabled="isLoading" @click="addTask">
-            <span v-if="isLoading" class="loading loading-spinner"></span>
-            {{ isLoading ? 'Adding...' : 'Add' }}
-          </button>
+          <button class="btn btn-primary" :disabled="state.isLoading" @click="addTask">Add</button>
         </div>
 
         <!-- Task List -->
         <div class="mt-4 flex flex-col gap-4">
           <div
-            v-for="task in tasks"
+            v-for="task in state.tasks"
             :key="task.id"
             class="form-control flex flex-row items-center gap-2"
           >
             <input
               type="checkbox"
-              :checked="task.completed"
+              :checked="task.status === 'completed'"
               class="checkbox"
               @change="toggleTaskCompletion(task)"
             />
+
             <p class="text-sm">{{ task.title }}</p>
-            <span class="badge badge-xs badge-info p-2">{{ task.status }}</span>
+            <div class="dropdown dropdown-end">
+              <div tabindex="0" role="button" class="badge badge-xs badge-info p-2">
+                {{ task.status }}
+              </div>
+              <ul
+                tabindex="0"
+                class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow"
+              >
+                <li><a>On-Going</a></li>
+                <li><a>Skip</a></li>
+              </ul>
+            </div>
+            <a class="flex items-center gap-2" onclick="editTaskModal.showModal()">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="size-6"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM16.862 4.487L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                />
+              </svg>
+            </a>
             <a class="flex items-center gap-2" @click="deleteTask(task)">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
