@@ -39,6 +39,11 @@ const router = createRouter({
           name: 'task',
           component: () => import('@/views/TaskView.vue'), // Task page
         },
+        {
+          path: 'template',
+          name: 'template',
+          component: () => import('@/views/TemplateView.vue'), // Template page
+        },
       ],
     },
   ],

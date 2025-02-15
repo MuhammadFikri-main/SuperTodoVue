@@ -1,8 +1,10 @@
 <script setup>
-import { reactive, onMounted } from 'vue'
+import { reactive, onMounted, ref } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+
+const editTaskModal = ref(null)
 
 // Router instance
 const router = useRouter()
@@ -15,6 +17,15 @@ const state = reactive({
     title: '',
     description: 'description',
   },
+  isModalOpen: false,
+  selectedTask: {
+    id: '',
+    title: '',
+    description: '',
+    status: '',
+    priority: '',
+    dateline: '',
+  },
   isLoading: false,
   toast: {
     message: '',
@@ -22,6 +33,30 @@ const state = reactive({
     visible: false,
   },
 })
+
+// User-friendly labels mapped to database values
+const statusMap = {
+  pending: 'Pending',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+}
+
+const priorityMap = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+}
+
+const openEditTaskModal = (task) => {
+  state.selectedTask = { ...task }
+  state.isModalOpen = true
+  editTaskModal.value?.showModal() // Open modal
+}
+
+const closeEditTaskModal = () => {
+  state.isModalOpen = false
+  editTaskModal.value?.close() // Close modal
+}
 
 // Show toast function
 const displayToast = (message, type = 'success', duration = 3000) => {
@@ -44,7 +79,8 @@ const fetchTasks = async () => {
         Authorization: `Bearer ${authStore.token}`, // Include the token
       },
     })
-    state.tasks = response.data.task // Update tasks with the fetched data
+    // Ensure tasks is always an array
+    state.tasks = Array.isArray(response.data.task) ? response.data.task : []
   } catch (error) {
     handleApiError(error, 'Failed to fetch tasks.')
   } finally {
@@ -67,6 +103,7 @@ const addTask = async () => {
     id: tempId,
     title: state.newTask.title,
     description: state.newTask.description,
+    status: 'pending', // Default status
     isTemporary: true, // Flag to identify temporary tasks
   }
 
@@ -76,7 +113,7 @@ const addTask = async () => {
   state.isLoading = true
   try {
     const response = await axios.post(
-      import.meta.env.VITE_API_URL + '/task',
+      import.meta.env.VITE_API_URL + '/addTask',
       {
         title: state.newTask.title,
         description: state.newTask.description,
@@ -132,14 +169,56 @@ const toggleTaskCompletion = async (task) => {
   }
 }
 
+// Update task
+const updateTask = async () => {
+  if (!state.selectedTask.title.trim()) {
+    displayToast('Task title cannot be empty.', 'error')
+    return
+  }
+
+  state.isLoading = true
+  try {
+    const response = await axios.put(
+      import.meta.env.VITE_API_URL + '/updateTask',
+      {
+        id: state.selectedTask.id,
+        title: state.selectedTask.title,
+        description: state.selectedTask.description,
+        status: state.selectedTask.status,
+        priority: state.selectedTask.priority,
+        dateline: state.selectedTask.dateline,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
+      },
+    )
+
+    // Update task in the list
+    state.tasks = state.tasks.map((task) =>
+      task.id === state.selectedTask.id ? response.data.task : task,
+    )
+
+    displayToast('Task updated successfully!', 'success')
+    closeEditTaskModal()
+    fetchTasks() // Refresh task list
+  } catch (error) {
+    handleApiError(error, 'Failed to update task.')
+  } finally {
+    state.isLoading = false
+  }
+}
+
 // Delete a task
 const deleteTask = async (task) => {
   try {
-    await axios.delete(import.meta.env.VITE_API_URL + `/task/${task.id}`, {
+    await axios.delete(`${import.meta.env.VITE_API_URL}/deleteTask/${task.id}`, {
       headers: {
         Authorization: `Bearer ${authStore.token}`, // Include the token
       },
     })
+
     state.tasks = state.tasks.filter((t) => t.id !== task.id) // Remove the deleted task
     displayToast('Task deleted successfully!', 'success')
   } catch (error) {
@@ -215,7 +294,7 @@ const handleApiError = (error, defaultMessage) => {
                 <li><a>Skip</a></li>
               </ul>
             </div>
-            <a class="flex items-center gap-2" onclick="editTaskModal.showModal()">
+            <button class="flex items-center gap-2" @click="openEditTaskModal(task)">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -230,7 +309,7 @@ const handleApiError = (error, defaultMessage) => {
                   d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM16.862 4.487L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
                 />
               </svg>
-            </a>
+            </button>
             <a class="flex items-center gap-2" @click="deleteTask(task)">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -251,5 +330,117 @@ const handleApiError = (error, defaultMessage) => {
         </div>
       </div>
     </div>
+
+    <dialog ref="editTaskModal" class="modal">
+      <div class="modal-box card card-compact bg-base-100 w-96 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title">Edit Task</h2>
+          <label class="form-control w-full max-w-xs">
+            <div class="label">
+              <span class="label-text">Task</span>
+            </div>
+            <input
+              type="text"
+              v-model="state.selectedTask.title"
+              class="input input-bordered w-full max-w-xs"
+            />
+          </label>
+          <label class="form-control w-full max-w-xs">
+            <div class="label">
+              <span class="label-text">Description</span>
+            </div>
+            <input
+              type="text"
+              v-model="state.selectedTask.description"
+              class="input input-bordered w-full max-w-xs"
+            />
+          </label>
+          <label class="form-control w-full max-w-xs">
+            <div class="label">
+              <span class="label-text">Status</span>
+            </div>
+            <div class="dropdown dropdown-bottom">
+              <div tabindex="0" role="button" class="btn m-1 w-full flex justify-between">
+                {{ state.selectedTask.status || 'Select Status' }}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+
+              <ul
+                tabindex="0"
+                class="dropdown-content menu bg-base-100 rounded-box z-[1] w-full p-2 shadow"
+              >
+                <li
+                  v-for="(label, value) in statusMap"
+                  :key="value"
+                  @click="state.selectedTask.status = value"
+                >
+                  <a>{{ label }}</a>
+                </li>
+              </ul>
+            </div>
+          </label>
+          <label class="form-control w-full max-w-xs">
+            <div class="label">
+              <span class="label-text">Priority</span>
+            </div>
+            <div class="dropdown dropdown-bottom">
+              <div tabindex="0" role="button" class="btn m-1 w-full flex justify-between">
+                {{ state.selectedTask.priority || 'Select Status' }}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+
+              <ul
+                tabindex="0"
+                class="dropdown-content menu bg-base-100 rounded-box z-[1] w-full p-2 shadow"
+              >
+                <li
+                  v-for="(label, value) in priorityMap"
+                  :key="value"
+                  @click="state.selectedTask.priority = value"
+                >
+                  <a>{{ label }}</a>
+                </li>
+              </ul>
+            </div>
+          </label>
+          <label class="form-control w-full max-w-xs">
+            <div class="label">
+              <span class="label-text">Dateline</span>
+            </div>
+            <input
+              type="date"
+              v-model="state.selectedTask.dateline"
+              class="input input-bordered w-full max-w-xs"
+            />
+          </label>
+          <div class="card-actions justify-end">
+            <button class="btn btn-secondary" @click="closeEditTaskModal">Cancel</button>
+            <button class="btn btn-secondary" @click="updateTask">Save</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
   </div>
 </template>
