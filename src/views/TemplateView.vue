@@ -1,8 +1,11 @@
 <script setup>
-import { reactive, onMounted, computed } from 'vue'
+import { reactive, onMounted, computed, ref } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+
+const addTemplateModal = ref(null)
+const templateDetailModal = ref(null)
 
 // Router instance
 const router = useRouter()
@@ -16,6 +19,7 @@ const state = reactive({
     visible: false,
   },
   isLoading: false,
+  isModalOpen: false,
   templates: [],
 })
 
@@ -56,6 +60,26 @@ const formattedTemplates = computed(() =>
   })),
 )
 
+const openAddTemplateModal = () => {
+  state.isModalOpen = true
+  addTemplateModal.value?.showModal() // Open modal
+}
+
+const closeAddTemplateModal = () => {
+  state.isModalOpen = false
+  addTemplateModal.value?.close() // Close modal
+}
+
+const openTemplateDetailModal = () => {
+  state.isModalOpen = true
+  templateDetailModal.value?.showModal() // Open modal
+}
+
+const closeTemplateDetailModal = () => {
+  state.isModalOpen = false
+  templateDetailModal.value?.close() // Close modal
+}
+
 const fetchTemplates = async () => {
   state.isLoading = true
 
@@ -89,7 +113,7 @@ onMounted(fetchTemplates)
     <div class="card bg-base-100 w-auto shadow-xl">
       <div class="card-body">
         <h2 class="card-title">List of Templates</h2>
-        <button class="btn">Add Template</button>
+        <button class="btn" @click="openAddTemplateModal()">Add Template</button>
         <div class="overflow-x-auto">
           <table class="table">
             <!-- head -->
@@ -137,7 +161,9 @@ onMounted(fetchTemplates)
                 </td>
                 <td>{{ template.tasks_count }}</td>
                 <th>
-                  <button class="btn btn-ghost btn-xs">details</button>
+                  <button class="btn btn-ghost btn-xs" @click="openTemplateDetailModal()">
+                    details
+                  </button>
                 </th>
               </tr>
             </tbody>
@@ -155,5 +181,31 @@ onMounted(fetchTemplates)
         </div>
       </div>
     </div>
+
+    <dialog ref="addTemplateModal" class="modal">
+      <div class="modal-box card card-compact bg-base-100 w-96 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title">Add Template</h2>
+
+          <div class="card-actions justify-end">
+            <button class="btn btn-secondary" @click="closeAddTemplateModal">Cancel</button>
+            <button class="btn btn-secondary" @click="saveTemplate">Save</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog ref="templateDetailModal" class="modal">
+      <div class="modal-box card card-compact bg-base-100 w-96 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title">Task Details</h2>
+
+          <div class="card-actions justify-end">
+            <button class="btn btn-secondary" @click="closeTemplateDetailModal">Cancel</button>
+            <button class="btn btn-secondary" @click="saveTemplate">Save</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
   </div>
 </template>
